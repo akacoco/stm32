@@ -1,0 +1,100 @@
+#include "modbus_jx.h" #include "USART.h" u8 TxBuffer_Address ; //发送地址为 0
+u8 TxBuf[30]; //发送缓存 是八位的寄存器
+void Lianxu_sj(void)
+{
+u8 i ;
+u16 j ;
+TxBuf[0] = MD_DiZhi;
+TxBuf[1] = Zhi_Ling;//这时候是 0
+TxBuf[2] = 2;
+for(i=3;i<23;i++) //
+{
+TxBuf[i] = Sensor_Data[i-3];//adc 的值一共 20 组存入左边
+}
+j = crc_ccitt(TxBuf, 23); //得到的 crc 校验值
+TxBuf[23] = j >> 8; //得到 crc 高八位
+TxBuf[24] = j & 0x0ff; //得到 crc 低八位
+TxBuffer_Address = 25; //发 25组 txbuf[0] TxBuffer_Address=25是第一次发的 0-24 25-1
+Usart1_SendString(TxBuf,TxBuffer_Address );
+}
+void Danci_sj(void)
+{
+u8 i ;
+u16 j ;
+TxBuf[0] = MD_DiZhi;
+TxBuf[1] = Zhi_Ling;
+TxBuf[2] = 2;
+for(i=3;i<5;i++) //
+{
+TxBuf[i] = Sensor_Data[i-3];
+}
+j = crc_ccitt(TxBuf, 5); //labview5 的来源
+TxBuf[5] = j >> 8; //
+TxBuf[6] = j & 0x0ff; //
+TxBuffer_Address = 7; //发 7 组
+}
+void WeiLai_zl(void) //针对其他指令以后添加
+{
+u8 i ;
+u16 j ;
+TxBuf[0] = MD_DiZhi;
+TxBuf[1] = Zhi_Ling;
+TxBuf[2] = 4;
+for(i=3;i<7;i++)
+{
+TxBuf[i] = 0x0aa;
+}
+j = crc_ccitt(Sensor_Data, 7);
+TxBuf[7] = j >> 8;
+TxBuf[8] = j & 0x0ff;
+TxBuffer_Address = 9;
+}
+//指令解析程序
+//针对收到 Modbus 指令串解析
+void ZhiLing_jiexi(u8 * sss,u8 len)//sss 是串口缓存 实际上就是 txbuf 的 0 到 24 组 len 是 25
+{
+u8 i , h8 , l8;
+u16 j , k , add ,data;
+i = len - 2;//23
+j = crc_ccitt(sss, i); //crc16 校验字计算
+h8 = *(sss + len - 1); //第 24 组 这个意思是以后面的 len-1 的值为数组下标
+l8 = *(sss + len - 2);//小的指针得到的在低八位 第 23 组 两个交换了
+k = h8 << 8;//得到 xxxxxxxx00000000
+k = k | l8; //合成收到指令串 CRC16 校验字
+if(k == j) //测试 CRC16 校验字
+{
+if(MD_DiZhi == *sss) //测试地址是否匹配 *sss 和*（sss+0）一样
+{
+Zhi_Ling = *(sss + 1); //取指令
+switch (Zhi_Ling)
+{
+case 01: //收到正常指令，回复
+{
+MO_shi = 1;
+break;
+}
+case 02: //收到正常指令，回复
+{
+MO_shi = 0;
+break;
+}
+case 04: //收到正常指令，回复
+{
+if(MO_shi == 0)
+{
+Danci_sj();
+Usart1_SendString(TxBuf,TxBuffer_Address );
+}
+break;
+}
+default:
+{
+WeiLai_zl(); //针对其他指令以后添加
+Usart1_SendString(TxBuf,TxBuffer_Address );
+break;
+}
+}
+}
+}
+Zhi_Ling = 0;
+}
