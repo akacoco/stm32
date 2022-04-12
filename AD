@@ -1,0 +1,75 @@
+#include "AD_Zhuanhua.h"
+/*配置采样通道端口 使能 GPIO 时钟 设置 ADC 采样端口信号*/
+void AD_Config(void)
+{
+GPIO_InitTypeDef GPIO_InitStructure;
+GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;//adc 转化输入口
+GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN; //模拟输入引脚
+GPIO_Init(GPIOA, &GPIO_InitStructure);//调用库函数中的 GPIO 初始化函数，初始化
+PA5
+GPIO_Init(GPIOA, &GPIO_InitStructure); //调用库函数中的 GPIO 初始化
+函数
+GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7;
+GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+GPIO_Init(GPIOB, &GPIO_InitStructure); //调用库函数中的 GPIO 初始化
+函数
+GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
+GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+GPIO_Init(GPIOB, &GPIO_InitStructure); //调用库函数中的 GPIO 初始化
+函数
+RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA |RCC_APB2Periph_ADC1 , ENABLE ); //使能 ADC1 通道时钟
+/* Configure ADCCLK such as ADCCLK = PCLK2/6 */
+RCC_ADCCLKConfig(RCC_PCLK2_Div6); //72M/6=12,ADC 最大时间不能超过 14M
+ADC_InitTypeDef ADC_InitStructure;
+ADC_DeInit(ADC1); //将外设 ADC1 的全部寄存器重设为缺省值
+/* ADC1 configuration ------------------------------------------------------*/
+ADC_InitStructure.ADC_Mode = ADC_Mode_Independent; //ADC 工作模式:ADC1 和
+ADC2 工作在独立模式
+ADC_InitStructure.ADC_ScanConvMode = DISABLE; //模数转换工作在单通道模式
+ADC_InitStructure.ADC_ContinuousConvMode = DISABLE; //模数转换工作在单次转换
+模式
+ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None; //转换由软件
+而不是外部触发启动
+ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right; //ADC 数据右对齐
+ADC_InitStructure.ADC_NbrOfChannel = 1; //顺序进行规则转换的 ADC 通道的数目
+ADC_Init(ADC1, &ADC_InitStructure); //根据 ADC_InitStruct 中指定的参数初始化外
+设 ADCx 的寄存器
+}
+u16 Get_Adc(u8 ch)
+{
+//设置转换序列
+//ADC1->SQR3&=0XFFFFFFE0;//规则序列 1 通道
+//ADC1->SQR3|=ch;
+//设置指定 ADC 的规则组通道，设置它们的转化顺序和采样时间
+ADC_RegularChannelConfig(ADC1, ch, 1, ADC_SampleTime_239Cycles5 ); //ADC1,ADC
+通道 5,规则采样顺序值为 1,采样时间为 239.5 周期
+//ADC1->CR2|=1<<22; //启动规则转换通道
+/* Start ADC1 Software Conversion */
+ADC_SoftwareStartConvCmd(ADC1, ENABLE); //使能指定的 ADC1 的软件转换
+启动功能
+//while(!(ADC1->SR&1<<1));//等待转换结束
+while(!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC ));//等待转换结束
+return ADC_GetConversionValue(ADC1); //返回最近一次 ADC1 规则组的转换结果
+}
+void AD_KaiShi(void)
+{
+/* ADC1 regular channel10 configuration */
+//设置指定 ADC 的规则组通道，设置它们的转化顺序和采样时间
+/* Enable ADC1 */
+ADC_Cmd(ADC1, ENABLE); //使能指定的 ADC
+/* Enable ADC1 reset calibaration register */
+ADC_ResetCalibration(ADC1); //重置指定的 ADC1 的校准寄存器
+/* Check the end of ADC1 reset calibration register */
+while(ADC_GetResetCalibrationStatus(ADC1)); //获取 ADC1 重置校准寄存器的状态,设
+置状态则等待
+/* Start ADC1 calibaration */
+ADC_StartCalibration(ADC1); //开始指定 ADC1 的校准状态
+/* Check the end of ADC1 calibration */
+while(ADC_GetCalibrationStatus(ADC1)); //获取指定 ADC1 的校准程序,设置状态
+则等待
+/* Start ADC1 Software Conversion */
+ADC_SoftwareStartConvCmd(ADC1, ENABLE); //使能指定的 ADC1 的软件转换
+启动功能
+}
